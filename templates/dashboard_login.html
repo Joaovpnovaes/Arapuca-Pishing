@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dashboard-page login-page">
+  <main class="login-card">
+    <p class="eyebrow">Painel privado</p>
+    <h1>Entrar no dashboard</h1>
+    <p class="muted">Acompanhe os acessos da sua página.</p>
+    {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+    <form method="post">
+      <label for="password">Senha administrativa</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button class="primary-button" type="submit">Acessar painel <span>→</span></button>
+    </form>
+  </main>
+</body>
+</html>

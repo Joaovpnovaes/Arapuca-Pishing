@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · Métricas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dashboard-page">
+  <header class="dashboard-header">
+    <div><p class="eyebrow">Visão geral</p><h1>Dashboard de acessos</h1></div>
+    <a class="logout-link" href="{{ url_for('dashboard_logout') }}">Sair</a>
+  </header>
+  <main class="dashboard-content">
+    <section class="stats-grid" aria-label="Resumo dos indicadores">
+      <article class="stat-card featured"><span class="stat-label">Pessoas que abriram</span><strong>{{ stats.views }}</strong><span class="stat-caption">visualizações da página</span></article>
+      <article class="stat-card"><span class="stat-label">Clicaram na senha</span><strong>{{ stats.password_intents }}</strong><span class="stat-caption">interesses registrados</span></article>
+      <article class="stat-card"><span class="stat-label">Enviaram dados</span><strong>{{ stats.submissions }}</strong><span class="stat-caption">formulários enviados</span></article>
+    </section>
+    <section class="activity-section">
+      <div class="section-heading"><div><p class="eyebrow">Atividade</p><h2>Eventos recentes</h2></div><span class="total-pill">{{ stats.total }} no total</span></div>
+      <div class="event-list">
+        {% for event in recent_events %}
+          <div class="event-row"><span class="event-dot {{ event.event_type }}"></span><span class="event-name">{% if event.event_type == 'view' %}Página aberta{% elif event.event_type == 'password_intent' %}Campo de senha acessado{% else %}Formulário enviado{% endif %}</span><time>{{ event.created_at[:16].replace('T', ' ') }}</time></div>
+        {% else %}<p class="empty-state">Ainda não há eventos registrados.</p>{% endfor %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>
