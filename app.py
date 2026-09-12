@@ -2,8 +2,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 from functools import wraps
-
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "analytics.db")
@@ -12,35 +11,37 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "troque-esta-chave-em-producao")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "arapucapishing")
 
-
 def get_db():
-    connection = sqlite3.connect(DATABASE)
-    connection.row_factory = sqlite3.Row
-    return connection
+    if "db" not in g:
+        g.db = sqlite3.connect(DATABASE)
+        g.db.row_factory = sqlite3.Row
+    return g.db
 
+@app.teardown_appcontext
+def close_db(exception):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
 
 def init_db():
-    with get_db() as connection:
-        connection.execute(
-            """
+    with app.app_context():
+        db = get_db()
+        db.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
-            """
-        )
-        connection.commit()
-
+        """)
+        db.commit()
 
 def record_event(event_type):
-    with get_db() as connection:
-        connection.execute(
-            "INSERT INTO events (event_type, created_at) VALUES (?, ?)",
-            (event_type, datetime.now(timezone.utc).isoformat()),
-        )
-        connection.commit()
-
+    db = get_db()
+    db.execute(
+        "INSERT INTO events (event_type, created_at) VALUES (?, ?)",
+        (event_type, datetime.now(timezone.utc).isoformat()),
+    )
+    db.commit()
 
 def dashboard_required(view):
     @wraps(view)
@@ -48,33 +49,29 @@ def dashboard_required(view):
         if not session.get("dashboard_authenticated"):
             return redirect(url_for("dashboard_login"))
         return view(*args, **kwargs)
-
     return wrapped_view
 
+# --- Rotas da Aplicação ---
 
 @app.route("/", methods=["GET"])
 def index():
     record_event("view")
     return render_template("index.html")
 
-
 @app.post("/api/password-intent")
 def password_intent():
     record_event("password_intent")
     return jsonify({"ok": True})
 
-
 @app.post("/submit")
 def submit():
     name = request.form.get("name", "").strip()
-    password = request.form.get("password", "")
-    if not name or not password:
-        return render_template("index.html", error="Preencha seu nome e sua senha."), 400
+    if not name:
+        return jsonify({"error": "Preencha o campo de e-mail."}), 400
 
-    # Registra apenas o envio; a senha nunca e armazenada.
+    # Registra o evento de submissão sem guardar dados do usuário
     record_event("submission")
-    return render_template("index.html", submitted=True, name=name)
-
+    return jsonify({"ok": True})
 
 @app.route("/dashboard/login", methods=["GET", "POST"])
 def dashboard_login():
@@ -86,30 +83,27 @@ def dashboard_login():
         error = "Senha incorreta."
     return render_template("dashboard_login.html", error=error)
 
-
 @app.get("/dashboard/logout")
 def dashboard_logout():
     session.pop("dashboard_authenticated", None)
     return redirect(url_for("dashboard_login"))
 
-
 @app.get("/dashboard")
 @dashboard_required
 def dashboard():
-    with get_db() as connection:
-        totals = connection.execute(
-            """
-            SELECT
-                COUNT(*) AS total,
-                SUM(event_type = 'view') AS views,
-                SUM(event_type = 'password_intent') AS password_intents,
-                SUM(event_type = 'submission') AS submissions
-            FROM events
-            """
-        ).fetchone()
-        recent_events = connection.execute(
-            "SELECT event_type, created_at FROM events ORDER BY id DESC LIMIT 8"
-        ).fetchall()
+    db = get_db()
+    totals = db.execute("""
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END) AS views,
+            SUM(CASE WHEN event_type = 'password_intent' THEN 1 ELSE 0 END) AS password_intents,
+            SUM(CASE WHEN event_type = 'submission' THEN 1 ELSE 0 END) AS submissions
+        FROM events
+    """).fetchone()
+
+    recent_events = db.execute(
+        "SELECT event_type, created_at FROM events ORDER BY id DESC LIMIT 8"
+    ).fetchall()
 
     stats = {
         "total": totals["total"] or 0,
@@ -118,7 +112,6 @@ def dashboard():
         "submissions": totals["submissions"] or 0,
     }
     return render_template("dashboard.html", stats=stats, recent_events=recent_events)
-
 
 init_db()
 
