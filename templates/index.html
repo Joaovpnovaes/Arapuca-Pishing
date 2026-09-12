@@ -56,48 +56,55 @@
     </div>
   </div>
   <script>
-    const password = document.querySelector('#password');
-    const email = document.querySelector('#name');
-    const form = document.querySelector('form');
-    const modal = document.querySelector('#education-modal');
-    const closeModal = document.querySelector('#close-modal');
-    let intentSent = false;
-    let warningShown = false;
+const password = document.querySelector('#password');
+const form = document.querySelector('form');
+const modal = document.querySelector('#education-modal');
+const closeModal = document.querySelector('#close-modal');
+let intentSent = false;
 
-    function registerIntent() {
-      if (intentSent) return;
-      intentSent = true;
-      fetch('{{ url_for("password_intent") }}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-    }
+// 1. Registra a tentativa de interagir com a senha (evento 'password_intent')
+function registerPasswordIntent() {
+  if (intentSent) return;
+  intentSent = true;
+  fetch('{{ url_for("password_intent") }}', { method: 'POST' });
+}
 
-    function showEducationWarning(event) {
-      if (event) event.preventDefault();
-      if (warningShown) return;
-      warningShown = true;
-      modal.hidden = false;
-      closeModal.focus();
-    }
+if (password) {
+  password.addEventListener('pointerdown', registerPasswordIntent);
+  password.addEventListener('focus', registerPasswordIntent);
+}
 
-    if (password) password.addEventListener('click', registerIntent);
-    if (email) email.addEventListener('focus', showEducationWarning, { once: true });
-    if (form) form.addEventListener('submit', showEducationWarning);
-    document.addEventListener('keydown', (event) => {
-      if (modal.hidden) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        return;
-      }
-      if (event.key === 'Tab') {
-        const focusable = [closeModal];
-        const currentIndex = focusable.indexOf(document.activeElement);
-        event.preventDefault();
-        focusable[currentIndex === -1 ? 0 : (currentIndex + 1) % focusable.length].focus();
-      }
+// 2. Trata o envio do formulário: registra a submissão e exibe o modal
+if (form) {
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); // Impede o recarregamento da página
+    
+    // Registra no backend sem expor credenciais
+    await fetch('{{ url_for("submit") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(new FormData(form))
     });
-    if (closeModal) closeModal.addEventListener('click', () => {
-      modal.hidden = true;
-      email.focus();
-    });
-  </script>
-</body>
-</html>
+
+    // Exibe o modal educativo na tela
+    modal.hidden = false;
+    closeModal.focus();
+  });
+}
+
+// 3. Acessibilidade do Modal (Navegação por teclado e Fechamento)
+document.addEventListener('keydown', (event) => {
+  if (modal.hidden) return;
+  if (event.key === 'Escape') event.preventDefault();
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    closeModal.focus();
+  }
+});
+
+if (closeModal) {
+  closeModal.addEventListener('click', () => {
+    modal.hidden = true;
+    form.reset();
+  });
+}
