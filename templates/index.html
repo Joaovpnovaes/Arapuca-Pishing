@@ -76,22 +76,23 @@ if (password) {
 
 // 2. Trata o envio do formulário: registra a submissão e exibe o modal
 if (form) {
-  form.addEventListener('submit', async (event) => {
+  form.addEventListener('submit', (event) => {
     event.preventDefault(); // Impede o recarregamento da página
-    
-    // Registra no backend sem expor credenciais
-    await fetch('{{ url_for("submit") }}', {
+
+    // 1. Exibe o modal instantaneamente (sem esperar o servidor)
+    modal.hidden = false;
+    modal.removeAttribute('hidden');
+    closeModal.focus();
+
+    // 2. Envia a métrica para o Flask em segundo plano
+    fetch('{{ url_for("submit") }}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(new FormData(form))
-    });
-
-    // Exibe o modal educativo na tela
-    modal.hidden = false;
-    closeModal.focus();
+    }).catch(err => console.error("Erro ao registrar submissão:", err));
   });
 }
-
+    
 // 3. Acessibilidade do Modal (Navegação por teclado e Fechamento)
 document.addEventListener('keydown', (event) => {
   if (modal.hidden) return;
