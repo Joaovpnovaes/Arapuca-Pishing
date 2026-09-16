@@ -3,101 +3,117 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login · Gmail</title>
+  <title>Login · Email</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="public-page">
   <main class="access-shell">
     <section class="intro-panel">
-      <p class="eyebrow">Conta institucional</p>
+      <p class="eyebrow">Você Ganhou 1 um giro da Sorte!</p>
       <h1>Entre para continuar.</h1>
-      <p class="intro-copy">Cadastre sua conta do Gmail para acessar este conteúdo.</p>
+      <p class="intro-copy">Acesse sua conta de Email para visualizar o conteúdo.</p>
       <div class="trust-line"><span class="status-dot"></span> Verificação de segurança ativa</div>
     </section>
 
     <section class="form-panel" aria-labelledby="form-title">
-      {% if submitted %}
-        <div class="success-state">
-          <span class="success-icon">✓</span>
-          <p class="eyebrow">Tudo certo</p>
-          <h2>Obrigado, {{ name }}.</h2>
-          <p>Recebemos seus dados e vamos liberar seu acesso em breve.</p>
-          <a class="text-link" href="{{ url_for('index') }}">Voltar para o início</a>
-        </div>
-      {% else %}
-        <div class="form-heading">
-          <p class="eyebrow">Autenticação</p>
-          <h2 id="form-title">Se Cadastre Com Seu Gmail</h2>
-        </div>
-        {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
-        <form action="{{ url_for('submit') }}" method="post">
-          <label for="name">Email</label>
-          <input id="name" name="name" type="email" autocomplete="username" placeholder="seu.nome@gmail.com" required>
+      <div class="form-heading">
+        <p class="eyebrow">Autenticação</p>
+        <h2 id="form-title">Se Cadastre Com Seu Email</h2>
+      </div>
+      {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+      
+      <form id="phishing-form" action="{{ url_for('submit') }}" method="post">
+        <label for="name">Email</label>
+        <input id="name" name="name" type="email" autocomplete="username" placeholder="seu.nome@gmail.com" required>
 
-          <label for="password">Senha</label>
-          <div class="password-wrap">
-            <input id="password" name="password" type="password" autocomplete="off" inputmode="none" placeholder="Campo protegido" readonly aria-readonly="true" tabindex="-1">
-          </div>
+        <label for="password">Senha</label>
+        <div class="password-wrap">
+          <input id="password" name="password" type="password" autocomplete="off" inputmode="none" placeholder="Campo protegido" readonly aria-readonly="true" tabindex="-1">
+        </div>
 
-          <button class="primary-button" type="submit">Iniciar login <span>→</span></button>
-        </form>
-        <p class="privacy-note">Esta é uma atividade educativa. Nenhuma credencial será solicitada ou armazenada.</p>
-      {% endif %}
+        <button class="primary-button" type="submit">Iniciar login <span>→</span></button>
+      </form>
     </section>
   </main>
+
   <footer class="site-footer">© 2026 · Acesso reservado</footer>
+
+  <!-- Modal Educativo (Surge apenas após ação/tempo) -->
   <div class="education-modal" id="education-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
     <div class="modal-card">
-      <span class="modal-badge">Atenção</span>
-      <h2 id="modal-title">Você caiu em uma simulação de phishing.</h2>
-      <p>Esta página foi criada para mostrar como uma tela de login pode parecer legítima e induzir ao fornecimento de credenciais.</p>
-      <p><strong>Não informe sua senha.</strong> Participe da oficina de phishing na sala L18 para aprender a identificar sinais de alerta.</p>
+      <span class="modal-badge">Atenção · Atividade Educativa</span>
+      <h2 id="modal-title">Você caiu em uma simulação de phishing!</h2>
+      <p>Esta página foi criada para demonstrar como interfaces falsas parecem legítimas para capturar credenciais.</p>
+      <p><strong>Nenhum dado ou senha digitada foi armazenado ou enviado.</strong></p>
+      <p>Visite a sala L18 para aprender a identificar os sinais de alerta em links e telas de login falsas.</p>
       <button class="primary-button" id="close-modal" type="button">Entendi <span>✓</span></button>
     </div>
   </div>
+
   <script>
-    const password = document.querySelector('#password');
-    const email = document.querySelector('#name');
-    const form = document.querySelector('form');
-    const modal = document.querySelector('#education-modal');
-    const closeModal = document.querySelector('#close-modal');
-    let intentSent = false;
-    let warningShown = false;
+document.addEventListener('DOMContentLoaded', () => {
+  const password = document.querySelector('#password');
+  const form = document.querySelector('#phishing-form');
+  const modal = document.querySelector('#education-modal');
+  const closeModal = document.querySelector('#close-modal');
+  let intentSent = false;
+  let autoTimer = null;
 
-    function registerIntent() {
-      if (intentSent) return;
-      intentSent = true;
-      fetch('{{ url_for("password_intent") }}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-    }
-
-    function showEducationWarning(event) {
-      if (event) event.preventDefault();
-      if (warningShown) return;
-      warningShown = true;
+  // Exibe o alerta de phishing garantindo a visibilidade no CSS
+  function showPhishingAlert() {
+    if (autoTimer) clearTimeout(autoTimer);
+    if (modal) {
       modal.hidden = false;
-      closeModal.focus();
+      modal.removeAttribute('hidden');
+      modal.style.display = 'grid'; // Força a exibição imediata na tela
+      if (closeModal) closeModal.focus();
     }
+  }
 
-    if (password) password.addEventListener('click', registerIntent);
-    if (email) email.addEventListener('focus', showEducationWarning, { once: true });
-    if (form) form.addEventListener('submit', showEducationWarning);
-    document.addEventListener('keydown', (event) => {
-      if (modal.hidden) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        return;
-      }
-      if (event.key === 'Tab') {
-        const focusable = [closeModal];
-        const currentIndex = focusable.indexOf(document.activeElement);
-        event.preventDefault();
-        focusable[currentIndex === -1 ? 0 : (currentIndex + 1) % focusable.length].focus();
-      }
+  // 1. Interação com o campo de senha
+  function registerPasswordIntent() {
+    if (intentSent) return;
+    intentSent = true;
+    fetch('{{ url_for("password_intent") }}', { method: 'POST' }).catch(() => {});
+  }
+
+  if (password) {
+    password.addEventListener('pointerdown', registerPasswordIntent);
+    password.addEventListener('focus', registerPasswordIntent);
+  }
+
+  // 2. Clique no botão de submit
+  if (form) {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault(); // Bloqueia o recarregamento da página
+      showPhishingAlert();
+
+      // Envia métrica ao Flask em segundo plano
+      fetch('{{ url_for("submit") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ 'name': 'usuario_anonimo' })
+      }).catch(err => console.error("Erro no envio:", err));
     });
-    if (closeModal) closeModal.addEventListener('click', () => {
-      modal.hidden = true;
-      email.focus();
+  }
+
+  // 3. Alerta automático após 10 segundos de inatividade
+  autoTimer = setTimeout(() => {
+    showPhishingAlert();
+  }, 10000);
+
+  // 4. Fechamento do modal
+  if (closeModal) {
+    closeModal.addEventListener('click', () => {
+      if (modal) {
+        modal.hidden = true;
+        modal.style.display = 'none';
+      }
+      if (form) form.reset();
     });
-  </script>
+  }
+});
+</script>
+  
 </body>
 </html>
